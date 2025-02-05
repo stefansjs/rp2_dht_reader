@@ -1,9 +1,6 @@
 # dht_reader
 PIO-based reader for DHT11 and DHT22 for use with Raspberry Pi Pico (or a RP2040 or similar mcu)
 
-## OVERVIEW
-By using PIO we can simplify the code compared to othr
-
 ## USAGE
 Connect your DHT sensor to the Pico. Pull up resistor between Vcc and Data lines is not necessary, because the code enables an internal pull-up in the pico, although if you do it shouldn't hurt.
 My DHT11 needed 5V on Vcc to work. DHT22 Worked fine on 3.3 Volts.
