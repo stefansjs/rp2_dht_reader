@@ -1,14 +1,11 @@
-# https://docs.micropython.org/en/latest/library/rp2.html#pio-related-functions
-# https://www.ocfreaks.com/basics-interfacing-dht11-dht22-humidity-temperature-sensor-mcu/
 from array import array
 from time import sleep, time
 import micropython
 from machine import Pin, Timer
 import rp2
 
-READ_PERIOD = const(1_000)
+READ_PERIOD = const(2_000)
 PIO_FREQUENCY = const(200_000)
-LED_PIN = const(25)
 
 """
 set_init: we define the single pin, and assign a high output to it to signal IDLE to DHT
@@ -57,9 +54,9 @@ class DhtReader:
     def __init__(self, sensor_pin: int, sensor_model: str, state_machine_num: int) -> None: 
         self.pin = Pin(sensor_pin, Pin.IN, Pin.PULL_UP)
         self.model: str = sensor_model
-        self.humidity: int = -100
-        self.temperature: int = -100
-        self.stamp: int = -100
+        self.humidity: int = 0
+        self.temperature: int = 0
+        self.stamp: int = 0
         self.err: int = 0
         self.sm = rp2.StateMachine(state_machine_num, read_dht, freq=PIO_FREQUENCY,
                                    in_base=self.pin, set_base=self.pin, jmp_pin=self.pin)
@@ -94,43 +91,3 @@ class DhtReader:
                 mode=Timer.PERIODIC,
                 callback=lambda t: micropython.schedule(self.sense, None)
             )
-
-
-def blink(num, light):
-    light.value(0)
-    light_time = const(0.03)
-    dark_time = const(0.1)
-    break_time = dark_time * 2
-    digits=[]
-    while num:
-        num, digit = divmod(num, 10)
-        digits.append(digit)
-    for digit in digits[::-1]:
-        for i in range(digit):
-            light.value(1)
-            sleep(light_time)
-            light.value(0)
-            sleep(dark_time)
-        sleep(break_time)
-    sleep(break_time)
-
-if __name__ == '__main__':
-    led = Pin(LED_PIN, Pin.OUT)
-    sensor1 = DhtReader(0, 'DHT11', 0)
-    sensor2 = DhtReader(1, 'DHT22', 1)
-    led.value(1)
-    sleep(0.5)
-    led.value(0)
-    sensor1.start()
-    sensor2.start()
-
-    while True:
-        sleep(1)
-        print(
-            "H:", sensor1.humidity/10,
-            "H2:", sensor2.humidity/10,
-            "T:", sensor1.temperature/10,
-            "T2:", sensor2.temperature/10
-            )
-        if sensor2.err:
-            blink(sensor2.err, led)
