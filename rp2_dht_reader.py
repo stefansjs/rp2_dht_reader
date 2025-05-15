@@ -65,16 +65,20 @@ class DhtReader:
         self.err: int = 0
         self.sm = rp2.StateMachine(state_machine_num, read_dht, freq=PIO_FREQUENCY,
                                    in_base=self.pin, set_base=self.pin, jmp_pin=self.pin)
-        self.repeater = Timer()
         
 
-    def sense(self, _):
+    def sense(self):
         start_ticks = ticks_us()
 
         readout = array('L', list(range(5)))
         if not self.sm.rx_fifo():
             self.err = 2
             self.temperature = self.humidity = None
+
+            # If the fifo isn't working, try to automatically start the state machine
+            if not self.sm.active():
+                self.sm.active(1)
+        
         else:        
             for i in range(5):
                 readout[i] = self.sm.get()
@@ -98,13 +102,22 @@ class DhtReader:
         self.duration = ticks_diff(ticks_us(), start_ticks) / 1_000_000
 
 
-    def start(self):
+    def start(self, repeater=None, period=READ_PERIOD, mode=Timer.PERIODIC):
+        """
+        Start the state machine and schedule 
+        """
         self.sm.active(1)
-        self.repeater.init(
-                period=READ_PERIOD,
-                mode=Timer.PERIODIC,
-                callback=lambda t: micropython.schedule(self.sense, None)
-            )
+
+        if repeater is None:
+            repeater = Timer()
+
+        repeater.init(period=period, mode=mode, callback=self._timer_callback)
+        return repeater
+    
+
+    def _timer_callback(self, timer):
+        """ timer callback """
+        micropython.schedule(DhtReader.sense, self)
 
 
 if __name__ == "__main__":
