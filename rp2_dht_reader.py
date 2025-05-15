@@ -1,5 +1,5 @@
 from array import array
-from utime import sleep, time, ticks_us, ticks_diff
+from utime import time, ticks_us, ticks_diff
 import micropython
 from machine import Pin, Timer
 import rp2
@@ -48,12 +48,12 @@ def read_dht():
 
 
 class DhtReader:
-    """
-    TODO: readme
-    """
-    
     DHT11 = "DHT11"
     DHT22 = "DHT22"
+
+    OK = 0
+    CHECKSUM_FAILURE = 1
+    FIFO_UNAVAILABLE = 2
 
     def __init__(self, sensor_pin: int, state_machine_num: int = 0, sensor_model: str = DHT11) -> None: 
         self.pin = Pin(sensor_pin, Pin.IN, Pin.PULL_UP)
@@ -70,9 +70,10 @@ class DhtReader:
     def sense(self):
         start_ticks = ticks_us()
 
+        # Read 5 bytes
         readout = array('L', list(range(5)))
         if not self.sm.rx_fifo():
-            self.err = 2
+            self.err = DhtReader.FIFO_UNAVAILABLE
             self.temperature = self.humidity = None
 
             # If the fifo isn't working, try to automatically start the state machine
@@ -83,6 +84,7 @@ class DhtReader:
             for i in range(5):
                 readout[i] = self.sm.get()
         
+        # verify checksum and decode bytes
         self.sm.restart()
         checksum = readout[4]
         if (sum(readout[0:4]) & 0xFF) == checksum:
@@ -93,9 +95,9 @@ class DhtReader:
             else:
                 self.humidity = readout[0]
                 self.temperature = readout[2]
-            self.err = 0
+            self.err = DhtReader.OK
         else:
-            self.err = 1
+            self.err = DhtReader.CHECKSUM_FAILURE
             self.temperature = self.humidity = None
         
         self.stamp = int(time())
@@ -129,10 +131,10 @@ if __name__ == "__main__":
 
     while True:
         sleep_ms(250)
-        if sensor.err == 0:
+        if sensor.err == DhtReader.OK:
             print(f"temperature: {sensor.temperature} °C, humidity: {sensor.humidity}%, duration: {sensor.duration}s")
-        elif sensor.err == 1:
+        elif sensor.err == DhtReader.CHECKSUM_FAILURE:
             print(f"Checksum failure (timestamp {sensor.stamp})")
-        elif sensor.err == 2:
+        elif sensor.err == DhtReader.FIFO_UNAVAILABLE:
             print(f"Cant read data")
 
