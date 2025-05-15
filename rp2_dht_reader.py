@@ -56,19 +56,22 @@ class DhtReader:
         self.model: str = sensor_model
         self.humidity: int = 0
         self.temperature: int = 0
-        self.stamp: int = 0
+        self.stamp: int = None
         self.err: int = 0
         self.sm = rp2.StateMachine(state_machine_num, read_dht, freq=PIO_FREQUENCY,
                                    in_base=self.pin, set_base=self.pin, jmp_pin=self.pin)
         self.repeater = Timer()
         
+
     def sense(self, _):
         readout = array('L', list(range(5)))
         if not self.sm.rx_fifo():
             self.err = 2
+            self.temperature = self.humidity = None
         else:        
             for i in range(5):
                 readout[i] = self.sm.get()
+        
         self.sm.restart()
         checksum = readout[4]
         if (sum(readout[0:4]) & 0xFF) == checksum:
@@ -77,12 +80,15 @@ class DhtReader:
                 t_sign = (readout[2] >> 7) * -2 + 1  #translate first bit to -1 or 1
                 self.temperature = t_sign * ((readout[2] & 0x7F) * 0xFF + readout[3])
             else:
-                self.humidity = readout[0] * 10
-                self.temperature = readout[2] * 10
-            self.stamp = int(time())
+                self.humidity = readout[0]
+                self.temperature = readout[2]
             self.err = 0
         else:
             self.err = 1
+            self.temperature = self.humidity = None
+        
+        self.stamp = int(time())
+
 
     def start(self):
         self.sm.active(1)
@@ -91,3 +97,21 @@ class DhtReader:
                 mode=Timer.PERIODIC,
                 callback=lambda t: micropython.schedule(self.sense, None)
             )
+
+
+if __name__ == "__main__":
+    # Create a simple test program
+    from time import sleep_ms
+    
+    sensor = DhtReader(28, "DHT11", 0)
+    sensor.start()
+
+    while True:
+        sleep_ms(250)
+        if sensor.err == 0:
+            print(f"temperature: {sensor.temperature}, humidity: {sensor.humidity}, timestamp: {sensor.stamp}")
+        elif sensor.err == 1:
+            print(f"Checksum failure (timestamp {sensor.stamp})")
+        elif sensor.err == 2:
+            print(f"Cant read data")
+
