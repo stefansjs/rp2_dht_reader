@@ -51,7 +51,11 @@ class DhtReader:
     """
     TODO: readme
     """
-    def __init__(self, sensor_pin: int, sensor_model: str, state_machine_num: int) -> None: 
+    
+    DHT11 = "DHT11"
+    DHT22 = "DHT22"
+
+    def __init__(self, sensor_pin: int, state_machine_num: int = 0, sensor_model: str = DHT11) -> None: 
         self.pin = Pin(sensor_pin, Pin.IN, Pin.PULL_UP)
         self.model: str = sensor_model
         self.humidity: int = 0
@@ -78,7 +82,7 @@ class DhtReader:
         self.sm.restart()
         checksum = readout[4]
         if (sum(readout[0:4]) & 0xFF) == checksum:
-            if self.model == 'DHT22':
+            if self.model == DhtReader.DHT22:
                 self.humidity = readout[0] * 0xFF + readout[1]
                 t_sign = (readout[2] >> 7) * -2 + 1  #translate first bit to -1 or 1
                 self.temperature = t_sign * ((readout[2] & 0x7F) * 0xFF + readout[3])
@@ -107,7 +111,7 @@ if __name__ == "__main__":
     # Create a simple test program
     from time import sleep_ms
     
-    sensor = DhtReader(28, "DHT11", 0)
+    sensor = DhtReader(28)
     sensor.start()
 
     while True:
