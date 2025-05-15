@@ -1,0 +1,7 @@
+{
+  "urls": [
+    ["rp2_dht_reader.py", "dht_reader.py"]
+  ],
+  "deps": [],
+  "version": "1.0"
+}
