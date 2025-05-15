@@ -1,5 +1,5 @@
 from array import array
-from time import sleep, time
+from utime import sleep, time, ticks_us, ticks_diff
 import micropython
 from machine import Pin, Timer
 import rp2
@@ -57,6 +57,7 @@ class DhtReader:
         self.humidity: int = 0
         self.temperature: int = 0
         self.stamp: int = None
+        self.duration = None
         self.err: int = 0
         self.sm = rp2.StateMachine(state_machine_num, read_dht, freq=PIO_FREQUENCY,
                                    in_base=self.pin, set_base=self.pin, jmp_pin=self.pin)
@@ -64,6 +65,8 @@ class DhtReader:
         
 
     def sense(self, _):
+        start_ticks = ticks_us()
+
         readout = array('L', list(range(5)))
         if not self.sm.rx_fifo():
             self.err = 2
@@ -88,6 +91,7 @@ class DhtReader:
             self.temperature = self.humidity = None
         
         self.stamp = int(time())
+        self.duration = ticks_diff(ticks_us(), start_ticks) / 1_000_000
 
 
     def start(self):
@@ -109,7 +113,7 @@ if __name__ == "__main__":
     while True:
         sleep_ms(250)
         if sensor.err == 0:
-            print(f"temperature: {sensor.temperature}, humidity: {sensor.humidity}, timestamp: {sensor.stamp}")
+            print(f"temperature: {sensor.temperature} °C, humidity: {sensor.humidity}%, duration: {sensor.duration}s")
         elif sensor.err == 1:
             print(f"Checksum failure (timestamp {sensor.stamp})")
         elif sensor.err == 2:
